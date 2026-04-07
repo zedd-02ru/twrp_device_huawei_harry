@@ -1,0 +1,81 @@
+# Copyright (C) 2012-2025 The Android Open Source Project
+#
+# Recovery configuration for kirin710 devices
+#
+
+import /init.recovery.kirin710.usb.rc
+import /init.recovery.decrypt.rc
+
+
+# (init) from (/system/etc/init/hw/init.rc:23)
+# (late-init) from (/system/etc/init/hw/init.rc:82)
+# (fs) from (/system/etc/init/hw/init.rc:147)
+# (post-fs) from (/init.recovery.kirin710.rc:9)
+# (post-fs-data) from (/system/etc/init/hw/init.rc:94)
+# (firmware_mounts_complete) from (/system/etc/init/hw/init.rc:78)
+# (boot) from (/system/etc/init/hw/init.rc:71)
+
+
+
+on fs
+    start fixlinks
+
+service fixlinks /system/bin/fixlinks.sh
+    oneshot
+    disabled
+    seclabel u:r:recovery:s0
+
+service oeminfo_nvm /system/sbin/true
+    disabled
+    seclabel u:r:recovery:s0
+
+on boot
+    start health-hal-2-0
+
+    chown system system /sys/devices/platform/ff200000.hisi_usb/plugusb
+    chmod 0660 /sys/devices/platform/ff200000.hisi_usb/plugusb
+    restorecon /vendor/bin/aptouch_daemon
+    start aptouch
+
+    
+on property:ro.board.platform=kirin710
+    chmod 0660 /sys/class/hw_power/charger/charge_data/iin_thermal
+    chown system system /sys/class/hw_power/charger/charge_data/iin_thermal
+    write /sys/class/hw_power/charger/charge_data/iin_thermal 900
+
+on fs && property:sys.usb.configfs=0
+    write /sys/class/android_usb/android0/f_ffs/aliases adb
+
+    write /sys/class/android_usb/android0/enable 0
+    write /sys/class/android_usb/android0/idVendor 12d1
+    write /sys/class/android_usb/android0/idProduct 107e
+    write /sys/class/android_usb/android0/functions adb
+    write /sys/class/android_usb/android0/iManufacturer ${ro.product.manufacturer}
+    write /sys/class/android_usb/android0/iProduct ${ro.product.model}
+    write /sys/class/android_usb/android0/iSerial ${ro.serialno}
+
+on property:sys.usb.config=mtp,adb
+    start adbd
+
+on property:sys.usb.config=adb
+    start adbd
+  
+# For touchscreen
+service aptouch /vendor/bin/aptouch_daemon
+    user root
+    group root system shell wakelock
+    disabled
+    seclabel u:r:aptouch:s0
+
+on property:odm.thp.service_enable=1
+    start aptouch
+
+on property:odm.thp.service_enable=0
+    stop aptouch
+    
+service tp-hal-1-0 /vendor/bin/hw/vendor.huawei.hardware.tp@1.0-service
+    class hal
+    user system
+    group system
+    seclabel u:r:recovery:s0
+
